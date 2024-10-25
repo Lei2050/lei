@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/Lei2050/lei-net/api"
-	cls "github.com/Lei2050/lei-util/cls"
+	cls "github.com/Lei2050/lei-utils/cls"
 )
 
 var _ api.TcpConnectioner = &Connection{}

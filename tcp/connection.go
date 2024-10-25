@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/Lei2050/lei-net/api"
+	cls "github.com/Lei2050/lei-util/cls"
 )
 
 var _ api.TcpConnectioner = &Connection{}
@@ -32,7 +33,7 @@ type Connection struct {
 	//RMaxSize int
 	//WMaxSize int
 
-	CloseUtil
+	cls.CloseUtil
 }
 
 func newConnection(conn *net.TCPConn, id int, proto Protocoler, option *Options) *Connection {
@@ -50,7 +51,7 @@ func newConnection(conn *net.TCPConn, id int, proto Protocoler, option *Options)
 		idle:   time.Duration(option.IdleTime) * time.Millisecond,
 		option: option,
 
-		CloseUtil: MakeCloseUtil(),
+		CloseUtil: cls.MakeCloseUtil(),
 	}
 }
 
@@ -59,7 +60,7 @@ func (ct *Connection) Id() int {
 }
 
 func (ct *Connection) RegisterCloseCb(f func()) {
-	ct.closeCb = append(ct.closeCb, f)
+	ct.RegisterCloseCallback(f)
 }
 
 func (ct *Connection) Close() {
@@ -69,12 +70,6 @@ func (ct *Connection) Close() {
 		//ct.conn.Close()
 		//close(ct.rc)
 		close(ct.wc)
-
-		for _, cb := range ct.closeCb {
-			if cb != nil {
-				cb()
-			}
-		}
 	})
 }
 
@@ -199,7 +194,7 @@ FOR:
 			} else {
 				break FOR
 			}
-		case <-ct.CloseChan:
+		case <-ct.CloseUtil.C():
 			break FOR
 		}
 	}

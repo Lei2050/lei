@@ -51,16 +51,16 @@ func IdleTime(ms int) Option {
 
 //// 读buff初始长度
 //func InBuffSize(size int) Option {
-//	return func(o *Options) {
-//		o.InBuffSize = size
-//	}
+//    return func(o *Options) {
+//        o.InBuffSize = size
+//    }
 //}
 
 //// 写buff初始长度
 //func OutBuffSize(size int) Option {
-//	return func(o *Options) {
-//		o.OutBuffSize = size
-//	}
+//    return func(o *Options) {
+//        o.OutBuffSize = size
+//    }
 //}
 
 // 读数据长度上限

@@ -57,8 +57,8 @@ func (s *Server) AddConnection(conn *net.TCPConn) *Connection {
 }
 
 //func (s *Server) onConnectionClose(id int) {
-//	delete(s.connections, id)
-//	leilog.Debug("onConnectionClose:%d current num of conns:%d!\n", id, len(s.connections))
+//    delete(s.connections, id)
+//    leilog.Debug("onConnectionClose:%d current num of conns:%d!\n", id, len(s.connections))
 //}
 
 func (s *Server) Start() {

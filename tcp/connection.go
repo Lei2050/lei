@@ -78,71 +78,6 @@ func (ct *Connection) Close() {
 	})
 }
 
-//func (ct *Connection) ReadLoop() {
-//	defer func() {
-//		if err := recover(); err != nil {
-//			debug.PrintStack()
-//			panic(err)
-//		}
-//	}()
-//
-//	//lenValBuf := make([]byte, LEN_BYTE_CNT)
-//	inBuf := make([]byte, ct.option.InBuffSize)
-//	//使用bufio提高效率
-//	reader := bufio.NewReaderSize(ct.conn, ct.option.InBuffSize)
-//
-//	for {
-//		ct.setReadDeadline()
-//
-//		//leilog.Debug("ReadLoop\n")
-//		//对上层的协定：前LEN_BYTE_CNT个字节代表协议长度（不包括长度部分）
-//		n, err := io.ReadFull(reader, inBuf[:LEN_BYTE_CNT])
-//		if n != LEN_BYTE_CNT || err != nil {
-//			leilog.Error("id:%d, Read head error:%+v readlen:%v", ct.id, err, n)
-//			ct.Close()
-//			return
-//		}
-//
-//		msgLen := int(decodeUint32(inBuf[:LEN_BYTE_CNT]))
-//		//leilog.Debug("id:%d ReadLoop, msgLen:%d", ct.id, msgLen)
-//		if msgLen < 0 {
-//			continue
-//		}
-//
-//		if ct.option.ReadMaxSize > 0 && msgLen > ct.option.ReadMaxSize {
-//			leilog.Error("id:%d, Read msgLen:%d heat ReadMaxSize:%d", ct.id, msgLen, ct.option.ReadMaxSize)
-//			ct.Close()
-//			return
-//		}
-//
-//		//msgLen协议长度，包括长度部分
-//		if msgLen > len(inBuf) { //resize
-//			inBuf = ct.resizeBuf(inBuf, LEN_BYTE_CNT, msgLen)
-//		}
-//
-//		ct.setReadDeadline()
-//
-//		dn, err := io.ReadFull(reader, inBuf[LEN_BYTE_CNT:msgLen])
-//		if dn != msgLen-LEN_BYTE_CNT || err != nil {
-//			leilog.Error("id:%d Read data error:%+v, dn:%d, msgLen:%d", ct.id, err, dn, msgLen)
-//			ct.Close()
-//			return
-//		}
-//		//leilog.Debug("id:%d ReadLoop 2 msgLen:%d", ct.id, dn)
-//
-//		//换成ringbuf
-//		msg, err := ct.proto.UnpackMsg(inBuf[LEN_BYTE_CNT:msgLen])
-//		leilog.Debug("id:%d ReadLoop msg:%+v, msg_type:%+v, msgLen:%+v", ct.id, msg, reflect.TypeOf(msg), msgLen)
-//		if err != nil {
-//			ct.Close()
-//			return
-//		}
-//		ct.processMsg(msg)
-//	}
-//
-//	//leilog.Debug("Conn:%d ReadLoop done !", ct.id)
-//}
-
 func (ct *Connection) ReadLoop() {
 	defer func() {
 		if err := recover(); err != nil {
@@ -168,24 +103,31 @@ func (ct *Connection) ReadLoop() {
 
 		widx += n
 
-		//pn是此次UnpackMsg处理掉的数据
-		pn, err := ct.proto.UnpackMsg(ct, inBuf[:widx])
-		if err != nil {
-			log.Printf("id:%d Read data error:%+v, pn:%d\n", ct.id, err, pn)
-			ct.Close()
-			return
+		totalPn := 0
+		for {
+			//pn是此次UnpackMsg处理掉的数据
+			pn, err := ct.proto.UnpackMsg(ct, inBuf[totalPn:widx])
+			if err != nil {
+				log.Printf("id:%d Read data error:%+v, pn:%d\n", ct.id, err, pn)
+				ct.Close()
+				return
+			}
+			if pn <= 0 {
+				break
+			}
+			totalPn += pn
 		}
 
-		if pn > 0 { //需要移动数据
+		if totalPn > 0 { //需要移动数据
 			if widx != len(inBuf) {
-				copy(inBuf, inBuf[pn:widx])
+				copy(inBuf, inBuf[totalPn:widx])
 			}
 		}
 		if widx == len(inBuf) {
 			//这里会移动数据，所以上面作判断widx != len(inBuf)，避免两次拷贝数据
-			inBuf = ct.resizeBuf(inBuf, pn, widx)
+			inBuf = ct.resizeBuf(inBuf, totalPn, widx)
 		}
-		widx -= pn
+		widx -= totalPn
 	}
 }
 
@@ -201,74 +143,6 @@ func (ct *Connection) setReadDeadline() {
 		}
 	}
 }
-
-//func (ct *Connection) processMsg(data []byte) {
-//	ct.proto.Process(ct, data)
-//	// select {
-//	// case ct.rc <- msg:
-//	// default:
-//	// 	fmt.Printf("Connection:%d rc is full !!!\n", ct.id)
-//	// }
-//}
-
-//func (ct *Connection) write(msg interface{}) {
-//	//validLen := len(ct.outBuf) - ct.outCnt
-//	validLen := len(ct.outBuf)
-//
-//	data, err := ct.proto.PackMsg(msg)
-//	if err != nil {
-//		leilog.Error("id:%d PackMsg error:%+v", ct.id, err)
-//		return
-//	}
-//	if len(data) <= 0 {
-//		return
-//	}
-//
-//	dataLen := len(data)
-//	if ct.option.WriteMaxSize > 0 && dataLen > ct.option.WriteMaxSize {
-//		leilog.Error("id:%d Write dataLen:%d heat WriteMaxSize:%d", ct.id, dataLen, ct.option.WriteMaxSize)
-//		ct.Close()
-//		return
-//	}
-//
-//	if validLen < LEN_BYTE_CNT+dataLen {
-//		//ct.outBuf = ct.resizeBuf(ct.outBuf, ct.outCnt, ct.outCnt+LEN_BYTE_CNT+dataLen)
-//		ct.outBuf = ct.resizeBuf(ct.outBuf, 0, LEN_BYTE_CNT+dataLen)
-//	}
-//
-//	//encodeUint32(uint32(dataLen), ct.outBuf[ct.outCnt:])
-//	//copy(ct.outBuf[ct.outCnt+LEN_BYTE_CNT:], data)
-//	//ct.outCnt += dataLen + LEN_BYTE_CNT
-//	encodeUint32(uint32(LEN_BYTE_CNT+dataLen), ct.outBuf)
-//	copy(ct.outBuf[LEN_BYTE_CNT:], data)
-//	wlen := dataLen + LEN_BYTE_CNT
-//
-//	//for ct.outCnt > 0 {
-//	//	if n, err := ct.conn.Write(ct.outBuf[:ct.outCnt]); err != nil {
-//	//		leilog.Error("Write error:%+v\n", err)
-//	//		ct.Close()
-//	//		return
-//	//	} else {
-//	//		//leilog.Debug("%d writed\n", n)
-//	//		if n < ct.outCnt {
-//	//			copy(ct.outBuf, ct.outBuf[n:ct.outCnt])
-//	//		}
-//	//		ct.outCnt -= n
-//	//	}
-//	//}
-//
-//	leilog.Debug("id:%d going to write:%+v", ct.id, ct.outBuf[:wlen])
-//	wp := 0
-//	for wp < wlen { //直到写完。
-//		if n, err := ct.conn.Write(ct.outBuf[wp:wlen]); err != nil {
-//			leilog.Error("id:%d Write error:%+v", ct.id, err)
-//			ct.Close()
-//			return
-//		} else {
-//			wp += n
-//		}
-//	}
-//}
 
 func (ct *Connection) write(msg interface{}) {
 	validLen := len(ct.outBuf)
@@ -367,49 +241,16 @@ func (ct *Connection) Write(msg interface{}) {
 	}
 }
 
-//func (ct *Connection) resizeBuf(oldBuff []byte, oldDataLen, minSize int) []byte {
-//	l := len(oldBuff)
-//	//leilog.Debug("resizeBuf old:%d\n", l)
-//	for l < minSize {
-//		if l < 1024 {
-//			l <<= 1
-//		} else {
-//			l = int(float64(l) * 1.5)
-//		}
-//	}
-//	//leilog.Debug("resizeBuf new:%d\n", l)
-//	newBuff := make([]byte, l)
-//	if oldDataLen > 0 {
-//		copy(newBuff, oldBuff[:oldDataLen])
-//	}
-//	return newBuff
-//}
-
 func (ct *Connection) resizeBuf(oldBuff []byte, s, e int) []byte {
 	l := len(oldBuff)
-	//leilog.Debug("resizeBuf old:%d\n", l)
 	if l < 10240 {
 		l <<= 1
 	} else {
 		l = int(float64(l) * 1.5)
 	}
-	//leilog.Debug("resizeBuf new:%d\n", l)
 	newBuff := make([]byte, l)
 	if e > s {
 		copy(newBuff, oldBuff[s:e])
 	}
 	return newBuff
 }
-
-//func (ct *Connection) expandBuf(oldBuff []byte) []byte {
-//	l := len(oldBuff)
-//	//leilog.Debug("resizeBuf old:%d\n", l)
-//	if l < 1024 {
-//		l <<= 1
-//	} else {
-//		l = int(float64(l) * 1.5)
-//	}
-//	//leilog.Debug("resizeBuf new:%d\n", l)
-//	newBuff := make([]byte, l)
-//	return newBuff
-//}

@@ -134,5 +134,5 @@ func (c *Client) Addr() *net.TCPAddr {
 }
 
 func (c *Client) CloseC() <-chan struct{} {
-	return c.conn.CloseChan
+	return c.conn.CloseUtil.C()
 }

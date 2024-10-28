@@ -6,8 +6,9 @@ import (
 	"runtime/debug"
 	"time"
 
-	"github.com/Lei2050/lei-net/api"
 	cls "github.com/Lei2050/lei-utils/cls"
+
+	"github.com/Lei2050/lei-net/api"
 )
 
 var _ api.TcpConnectioner = &Connection{}
@@ -24,8 +25,6 @@ type Connection struct {
 	outBuf []byte
 	//outCnt int
 	idle time.Duration
-
-	closeCb []func()
 
 	option *Options
 	//RBufSize int

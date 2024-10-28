@@ -224,11 +224,8 @@ func (ct *Connection) Write(msg interface{}) {
 		}
 	}()
 
-	if ct.IsClosed() {
-		return
-	}
-
 	select {
+	case <-ct.C():
 	case ct.wc <- msg:
 	default:
 		log.Fatalf("Connection:%d wc is full !!!\n", ct.id)

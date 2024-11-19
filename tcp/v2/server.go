@@ -87,8 +87,9 @@ func (s *Server) Start() {
 			return func() {
 				s.Lock()
 				delete(s.connections, id)
+				connNum := len(s.connections)
 				s.Unlock()
-				log.Printf("onConnectionClose:%d current num of conns:%d!", id, len(s.connections))
+				log.Printf("onConnectionClose:%d current num of conns:%d!", id, connNum)
 			}
 		}(id))
 		log.Printf("in comming connection:%s id:%d, local_addr:%s conn_tcp:%d",
@@ -111,4 +112,10 @@ func (s *Server) Broadcast(msg interface{}) int {
 		v.Write(msg)
 	}
 	return len(connSlice)
+}
+
+func (s *Server) ConnNum() int {
+	s.Lock()
+	defer s.Unlock()
+	return len(s.connections)
 }

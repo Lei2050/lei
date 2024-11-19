@@ -2,13 +2,13 @@ package api
 
 type TcpServerer interface {
 	Start()
-	Broadcast(interface{})
+	Broadcast(any) int
 }
 
 type TcpClienter interface {
 	Id() int          //底层分配的id
 	Reconnect() error //重连
-	Write(interface{})
+	Write(any)
 	Close()
 	IsClosed() bool
 	CloseC() <-chan struct{}
@@ -17,7 +17,7 @@ type TcpClienter interface {
 
 type TcpConnectioner interface {
 	Id() int
-	Write(interface{})
+	Write(any)
 	Close()
 	IsClosed() bool
 	RegisterCloseCb(func())

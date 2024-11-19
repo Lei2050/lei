@@ -18,35 +18,23 @@ type Connection struct {
 
 	conn  *net.TCPConn
 	proto Protocoler
-	//rc    chan interface{}
-	// inBuf  []byte
-	// inCnt  int
+
 	wc     chan interface{}
 	outBuf []byte
-	//outCnt int
-	idle time.Duration
+	idle   time.Duration
 
 	option *Options
-	//RBufSize int
-	//WBufSize int
-	//RMaxSize int
-	//WMaxSize int
 
 	cls.CloseUtil
 }
 
 func newConnection(conn *net.TCPConn, id int, proto Protocoler, option *Options) *Connection {
 	return &Connection{
-		conn:  conn,
-		id:    id,
-		proto: proto,
-		// rc:    make(chan interface{}, 128),
-		// inBuf:  make([]byte, 1024),
-		// inCnt:  0,
-		wc: make(chan interface{}, 128),
-		//outBuf: make([]byte, option.OutBuffSize),
+		conn:   conn,
+		id:     id,
+		proto:  proto,
+		wc:     make(chan interface{}, 128),
 		outBuf: make([]byte, 256), //简化上层配置，这个参数不开放配置
-		//outCnt: 0,
 		idle:   time.Duration(option.IdleTime) * time.Millisecond,
 		option: option,
 
@@ -68,7 +56,7 @@ func (ct *Connection) Close() {
 		//等待写完毕。读不需要等待。写完之后再关闭
 		//ct.conn.Close()
 		//close(ct.rc)
-		close(ct.wc)
+		//close(ct.wc)
 	})
 }
 
@@ -167,6 +155,11 @@ func (ct *Connection) write(msg interface{}) {
 	wp := 0
 	for wp < dataLen { //直到写完。
 		if n, err := ct.conn.Write(ct.outBuf[wp:dataLen]); err != nil {
+			if opError, ok := err.(*net.OpError); ok && opError.Temporary() {
+				log.Printf("id:%d Write temporary error:%+v\n", ct.id, err)
+				wp += n
+				continue
+			}
 			log.Printf("id:%d Write error:%+v\n", ct.id, err)
 			ct.Close()
 			return

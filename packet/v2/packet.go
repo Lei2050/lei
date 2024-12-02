@@ -88,6 +88,12 @@ func NewPacket() *Packet {
 	return allocPacket()
 }
 
+func NewPacketWithPayload(payloadSize int) *Packet {
+	pkt := allocPacket()
+	pkt.extendPayload(payloadSize)
+	return pkt
+}
+
 func (p *Packet) payloadSlice(i, j uint32) []byte {
 	return p.bytes[i+prePayloadSize : j+prePayloadSize]
 }
